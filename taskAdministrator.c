@@ -50,7 +50,7 @@ typedef struct
 } admin_t;
 
 void generateInitRandomTask(task_t*);
-
+void bubbleSort(task_t*, uint16_t);
 void swapTask(task_t*, task_t*);
 
 int main(void)
@@ -105,37 +105,22 @@ void bubbleSort(task_t *current_tasks, uint16_t tasks_size)
         {
             if ((current_tasks + j)->priority >  (current_tasks + j + 1)->priority)
             {
-                // register uint16_t temp = (current_tasks + j + 1)->priority;
-                // (current_tasks + j + 1)->priority = (current_tasks + j)->priority;
-                // (current_tasks + j)->priority = temp;
-
-                // task_t *temp = malloc(sizeof(*temp));
-                // memcpy(temp, (current_tasks + j + 1), sizeof(task_t));
-                // memcpy((current_tasks + j + 1), (current_tasks + j), sizeof(task_t));
-                // memcpy((current_tasks + j), temp, sizeof(task_t));
-
                 swapTask((current_tasks + j), (current_tasks + j + 1));
             }
             else if ((current_tasks + j)->priority == (current_tasks + j + 1)->priority)
             {
-                // if ((current_tasks + j)->duration > (current_tasks + j + 1)->duration)
-                // {
-                //     task_t *temp = malloc(sizeof(*temp));
-                //     memcpy(temp, (current_tasks + j + 1), sizeof(task_t));
-                //     memcpy((current_tasks + j + 1), (current_tasks + j), sizeof(task_t));
-                //     memcpy((current_tasks + j), temp, sizeof(task_t));
-                // }
-                // else
-                // {
-                //     task_t *temp = malloc(sizeof(*temp));
-                //     memcpy(temp, (current_tasks + j + 1), sizeof(task_t));
-                //     memcpy((current_tasks + j + 1), (current_tasks + j), sizeof(task_t));
-                //     memcpy((current_tasks + j), temp, sizeof(task_t));
-                // }
-                
-                
+                if ((current_tasks + j)->duration > (current_tasks + j + 1)->duration)
+                {
+                    swapTask((current_tasks + j), (current_tasks + j + 1));
+                }
+                else if ((current_tasks + j)->duration == (current_tasks + j + 1)->duration)
+                {
+                    if ((current_tasks + j)->time_queued < (current_tasks + j + 1)->time_queued)
+                    {
+                        swapTask((current_tasks + j), (current_tasks + j + 1));
+                    }
+                } 
             }
-            
         }
         --n;
     }
