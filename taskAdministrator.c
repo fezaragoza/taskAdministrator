@@ -10,10 +10,10 @@
 #include <unistd.h>
 #include <time.h>
 
-#define MAX_TASKS 1000
-#define RAND_TASKS 3
-#define MAX_TASK_DURATION 200 // [m/s]
-#define MAX_TASK_PRIORITY 5
+#define MAX_TASKS 1000u
+#define RAND_TASKS 3u
+#define MAX_TASK_DURATION 200u // [m/s]
+#define MAX_TASK_PRIORITY 5u
 
 typedef enum
 {
@@ -25,7 +25,8 @@ typedef enum
 
 typedef enum
 {
-    EJECUTAR = 0,
+    IDLE = 0,
+    EJECUTAR,
     AGREGAR,
     ELIMINAR,
     PAUSAR,
@@ -49,9 +50,15 @@ typedef struct
     uint16_t     task_count;
 } admin_t;
 
+void init(admin_t*);
 void generateInitRandomTask(task_t*);
 void bubbleSort(task_t*, uint16_t);
 void swapTask(task_t*, task_t*);
+void menu(admin_t*);
+void printInfo(admin_t *);
+void grid(uint16_t, uint16_t, uint16_t,\
+            uint16_t, uint16_t);
+void ejecutar(admin_t*);
 
 int main(void)
 {   
@@ -62,14 +69,31 @@ int main(void)
     memset(&admin, 0, sizeof(admin));
 
     // printf("%d ", sizeof(admin.tasks)/sizeof(task_t)); Reports total current array elements
-    uint16_t current_tasks_size = sizeof(admin.tasks)/sizeof(task_t);
-    printf("%d\n", current_tasks_size);
-    generateInitRandomTask(admin.tasks);
-    bubbleSort(admin.tasks, current_tasks_size);
+    // uint16_t current_tasks_size = sizeof(admin.tasks)/sizeof(task_t);
+    // printf("%d\n", current_tasks_size);
+    
+    init(&admin);
+    // while(admin.menu != SALIR)
+    // {
+    //     menu(&admin);
+
+    //     // printInfo(&admin);
+    // }
+
+    printInfo(&admin);
 
     return 0;
 }
 
+void init(admin_t *admin)
+{
+    printf("Bienvenido Administrador.\n");
+    printf("Generando %d tareas iniciales...\n", RAND_TASKS);
+    generateInitRandomTask(admin->tasks);
+    admin->task_count = sizeof(admin->tasks)/sizeof(task_t);
+    printf("Sorteando tareas...\n");
+    bubbleSort(admin->tasks, admin->task_count);
+}
 
 void generateInitRandomTask(task_t *current_tasks)
 {
@@ -90,11 +114,6 @@ void generateInitRandomTask(task_t *current_tasks)
     }
     
 }
-
-// void addPriority(task_t *current_tasks)
-// {
-
-// }
 
 void bubbleSort(task_t *current_tasks, uint16_t tasks_size)
 {
@@ -131,7 +150,6 @@ void bubbleSort(task_t *current_tasks, uint16_t tasks_size)
         printf("\n");
     }
     
-    
 }
 
 void swapTask(task_t *task_behind, task_t *task_ahead)
@@ -142,3 +160,114 @@ void swapTask(task_t *task_behind, task_t *task_ahead)
     memcpy(task_ahead, task_behind, sizeof(task_t));
     memcpy(task_behind, temp, sizeof(task_t));
 }
+
+void menu(admin_t *admin)
+{
+    menu_state_t seleccion;
+    uint8_t menu_sel;
+    _Bool repetir;
+
+    printMenu();
+    scanf("i", &menu_sel);
+
+    if ((menu_sel < 0) || (menu_sel > 6)){
+        repetir = true;
+    }
+    else
+    {
+        seleccion = (menu_state_t)(menu_sel);
+        switch (seleccion)
+        {
+        case EJECUTAR:
+            // ejecutar(admin);
+            break;
+        case AGREGAR:
+            /* code */
+            break;
+        case ELIMINAR:
+            /* code */
+            break;
+        case PAUSAR:
+            /* code */
+            break;
+        case IMPRIMIR:
+            /* code */
+            break;
+        case SALIR:
+            /* code */
+            break;
+        default:
+            break;
+        }
+    }
+    
+    
+    if (repetir)
+        menu(admin);
+
+}
+
+void printMenu(void)
+{
+    printf("ADMINISTRADOR DE TAREAS.\n");
+    printf("\n");
+    printf("¿Qué deseas hacer?\n");
+    printf("1. Ejecutar Tarea.\n");
+    printf("2. Agregar Tarea.\n");
+    printf("3. Eliminar Tarea.\n");
+    printf("4. Pausar Tarea.\n");
+    printf("5. Imprimir Tarea.\n");
+    printf("6. Salir del Menu.\n");
+    printf("\n");
+}
+
+void printInfo(admin_t *admin)
+{
+    uint16_t count_espera;
+    uint16_t count_ejecucion;
+    uint16_t count_eliminada;
+    uint16_t count_pausada;
+
+    for (size_t i = 0; i < admin->task_count; i++)
+    {
+        switch (admin->tasks[i].state)
+        {
+        case ESPERA:
+            ++count_espera;
+            break;
+        case EJECUTANDO:
+            ++count_ejecucion;
+            break;
+        case PAUSA:
+            ++count_pausada;
+            break;
+        case KILL:
+            ++count_eliminada;
+            break;
+        default:
+            break;
+        }
+    }
+    grid(admin->task_count, count_espera, count_ejecucion,\
+            count_pausada, count_eliminada);
+}
+
+void grid(uint16_t total, uint16_t espera, uint16_t ejecutando,\
+            uint16_t pausa, uint16_t kill)
+{
+    printf(" _______________________________________________________");
+    printf("_______________________________________________________\n");
+    printf("|\t\t\t|\t\t\t|\t\t\t|\t\t|\t\t\t|\n");
+    printf("|\tTOTALES\t\t|\tESPERA\t\t|\tEJECUCION\t|\tKILL\t|\tPAUSADA\t\t|\n");
+    printf("|\t\t\t|\t\t\t|\t\t\t|\t\t|\t\t\t|\n");
+    printf(" --------------------------------------------------------");
+    printf("--------------------------------------------------------\n");
+    printf("|\t    %d    \t|\t   %d    \t|\t   %d     \t|\t  %d  \t|\t   %d     \t|\n", total, espera, ejecutando, kill, pausa);
+    printf(" --------------------------------------------------------");
+    printf("--------------------------------------------------------\n");
+}
+
+// void ejecutar(admin_t *admin)
+// {
+//     printf("Cuantas tareas deseas ejecutar? \n")
+// }
