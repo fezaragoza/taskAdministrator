@@ -100,6 +100,7 @@ void verTareas(admin_t*);
 */
 int main(void)
 {   
+    time_t begin = time(NULL);
     time_t t;
     srand((unsigned int) time(&t)); // Semilla para generar numeros random
 
@@ -115,6 +116,12 @@ int main(void)
     {
         menu(admin);                                      // Continuos process.
     }
+
+    time_t end = time(NULL);
+    double time_spent = (double)(end - begin);
+    printf("Tiempo en ejecucion: %f seg.\n", time_spent);
+    printf("Total de memoria consumida por las tareas en bytes: %d\n", (admin->task_count.actual * sizeof(task_t)));
+    free(admin);
     return 0;
 }
 
@@ -226,7 +233,7 @@ void menu(admin_t *admin)
         system("clear");
         break;
     case SALIR:
-        printf("GRACIAS POR USAR EL ADMINISTRADOR, HASTA PRONTO");
+        printf("GRACIAS POR USAR EL ADMINISTRADOR, HASTA PRONTO\n");
         break;
     case VERTAREAS:
         verTareas(admin);
@@ -330,17 +337,17 @@ void printInfo(admin_t *admin)
 void grid(uint16_t total, uint16_t espera, uint16_t ejecutando,\
             uint16_t pausa, uint16_t kill)
 {
-    printf(" _______________________________________________________");
-    printf("_______________________________________________________\n");
-    printf("|\t\t\t|\t\t\t|\t\t\t|\t\t|\t\t\t|\n");
-    printf("|\tTOTALES\t\t|\tESPERA\t\t|\tEJECUTADAS\t|\tKILL\t|\tPAUSADAS\t|\n");
-    printf("|\t\t\t|\t\t\t|\t\t\t|\t\t|\t\t\t|\n");
-    printf(" --------------------------------------------------------");
-    printf("--------------------------------------------------------\n");
-    printf("|\t    %d    \t|\t   %d    \t|\t   %d     \t|\t  %d  \t|\t   %d     \t|\n", \
-                total, espera, ejecutando, kill, pausa);
-    printf(" --------------------------------------------------------");
-    printf("--------------------------------------------------------\n");
+    printf(" ___________________________________________________________________");
+    printf("____________________________________________________________________\n");
+    printf("|\t\t\t|\t\t\t|\t\t\t|\t\t|\t\t\t|\t\t\t|\n");
+    printf("|\tTOTALES\t\t|\tESPERA\t\t|\tEJECUTADAS\t|\tKILL\t|\tPAUSADAS\t|\tMEMORIA\t\t|\n");
+    printf("|\t\t\t|\t\t\t|\t\t\t|\t\t|\t\t\t|\t\t\t|\n");
+    printf(" -------------------------------------------------------------------");
+    printf("--------------------------------------------------------------------\n");
+    printf("|\t    %d    \t|\t   %d    \t|\t   %d     \t|\t  %d  \t|\t   %d     \t|\t   %d     \t|\n", \
+                total, espera, ejecutando, kill, pausa, total*sizeof(task_t));
+    printf(" -------------------------------------------------------------------");
+    printf("--------------------------------------------------------------------\n");
 }
 
 void addTimeQueued(admin_t *admin, uint8_t time)
@@ -561,6 +568,7 @@ void printCurrentTaskInfo(task_t* task)
         break;
     }
     printf("|  Estado: %s\t|\n", estado);
+    printf("| Tamano bytes: %d|\n", sizeof(*task));
     printf("-------------------------\n");
 }
 
