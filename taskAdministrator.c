@@ -9,16 +9,27 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <time.h>
+#include <poll.h>
 
-#define MAX_TASKS 1000u
-#define RAND_TASKS 3u
-#define MAX_TASK_DURATION 200u // [m/s]
-#define MAX_TASK_PRIORITY 5u
+/*
+* DEFINES
+*/
+#define MAX_TASKS         1000u
+#define RAND_TASKS        100
+#define MAX_TASK_PRIORITY 100u
+#define MAX_TASK_DURATION 6u   // [s]
+#define POLL_INPUT_TIME   3000 // [m/s]
 
+#define LOOP_TASKS for (size_t i = 0; i < admin->task_count.actual; i++)
+#define GEN_IDENTIF(x, y, z) x##y##z 
+
+/*
+* TYPEDEFS
+*/
 typedef enum
 {
     ESPERA = 0,
-    EJECUTANDO, // EN COLA
+    EJECUTADA, // EN COLA
     PAUSA,
     KILL
 } task_state_t;
@@ -32,67 +43,102 @@ typedef enum
     PAUSAR,
     IMPRIMIR,
     SALIR,
+    VERTAREAS,
 } menu_state_t;
 
 typedef struct
 {
-    char         identif;
-    uint16_t     priority;
-    uint16_t     duration;
-    uint32_t     time_queued;
-    task_state_t state;
+    unsigned char identif[3];
+    uint16_t      priority;
+    uint16_t      duration;
+    uint32_t      time_queued;
+    task_state_t  state;
 } task_t;
 
 typedef struct
 {
-    task_t       tasks[RAND_TASKS];
+    uint16_t total;
+    uint16_t actual;
+    uint16_t espera;
+    uint16_t ejecutadas;
+    uint16_t pausadas;
+    uint16_t eliminidas;
+} task_count_t;
+
+typedef struct
+{
     menu_state_t menu;
-    uint16_t     task_count;
+    task_count_t task_count;
+    task_t*      tasks; // = NULL
 } admin_t;
 
+
+/*
+* FUNCTION PROTOTYPE DECLARATION
+*/
 void init(admin_t*);
 void generateInitRandomTask(task_t*);
 void bubbleSort(task_t*, uint16_t);
 void swapTask(task_t*, task_t*);
 void menu(admin_t*);
-void printInfo(admin_t *);
+menu_state_t getMenuSelection(void);
+void printMenu(void);
+void printInfo(admin_t*);
 void grid(uint16_t, uint16_t, uint16_t,\
             uint16_t, uint16_t);
+void addTimeQueued(admin_t*, uint8_t);
 void ejecutar(admin_t*);
+void agregar(admin_t*);
+void eliminar(admin_t*);
+void pausar(admin_t*);
+void imprimir(admin_t*);
+void printCurrentTaskInfo(task_t*);
+void verTareas(admin_t*);
 
+/*
+* MAIN
+*/
 int main(void)
 {   
     time_t t;
     srand((unsigned int) time(&t));
 
-    admin_t admin;
-    memset(&admin, 0, sizeof(admin));
+    // admin_t admin;
+    admin_t* admin;
+    admin = (admin_t*)malloc(sizeof(*admin));
 
+    admin->tasks = malloc((RAND_TASKS * sizeof(task_t)));
+    memset(admin, 0, sizeof(admin));
+    admin->task_count.actual = RAND_TASKS; // Need to keep track of array size as it's a pointer.
+    // admin.task_count.actual = sizeof(admin/tasks)/sizeof(task_t);
     // printf("%d ", sizeof(admin.tasks)/sizeof(task_t)); Reports total current array elements
     // uint16_t current_tasks_size = sizeof(admin.tasks)/sizeof(task_t);
     // printf("%d\n", current_tasks_size);
     
-    init(&admin);
-    // while(admin.menu != SALIR)
-    // {
-    //     menu(&admin);
+    init(admin);
+    while(admin->menu != SALIR)
+    {
+        menu(admin);
+        // printInfo(&admin);
 
-    //     // printInfo(&admin);
-    // }
-
-    printInfo(&admin);
+        // Update task count
+        // admin.task_count.actual = sizeof(admin.tasks)/sizeof(task_t); // Actual
+    }
 
     return 0;
 }
 
+/*
+* FUNCTION DEFINITIONS
+*/
 void init(admin_t *admin)
 {
     printf("Bienvenido Administrador.\n");
     printf("Generando %d tareas iniciales...\n", RAND_TASKS);
     generateInitRandomTask(admin->tasks);
-    admin->task_count = sizeof(admin->tasks)/sizeof(task_t);
+    // admin->task_count.actual = sizeof(admin->tasks)/sizeof(task_t);  // Actual
     printf("Sorteando tareas...\n");
-    bubbleSort(admin->tasks, admin->task_count);
+    bubbleSort(admin->tasks, admin->task_count.actual);
 }
 
 void generateInitRandomTask(task_t *current_tasks)
@@ -101,16 +147,26 @@ void generateInitRandomTask(task_t *current_tasks)
     // printf("%d ", sizeof(*current_tasks)); // Reports size in bytes of just one task_t, as the pointer points to first element in the list
     // printf("%d ", sizeof(*current_tasks)/sizeof(task_t)); // Reports just 1 byte, as they both are the same size. *current_tasks points to the first element.
 
+    const char table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',\
+                            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
+    uint8_t size_table = sizeof(table) / sizeof(char);
+
     for (size_t i = 0; i < RAND_TASKS; i++)
     {
-        // (current_tasks + i)->identif = 'AB'
+        // char ident[3];
+        for (size_t j = 0; j < 3; j++)
+        {
+            // ident[j] = table[rand() % size_table];      
+            (current_tasks + i)->identif[j] = table[rand() % size_table]; 
+        }
         (current_tasks + i)->priority    = rand() % MAX_TASK_PRIORITY;
         (current_tasks + i)->duration    = rand() % MAX_TASK_DURATION;
         (current_tasks + i)->time_queued = 0;
         (current_tasks + i)->state       = ESPERA;
-        printf("%d ",  (current_tasks + i)->priority);
-        printf("%d ",  (current_tasks + i)->duration);
-        printf("\n");
+        // Uncomment below to print the generated radom array
+        // printf("%d ",  (current_tasks + i)->priority);
+        // printf("%d ",  (current_tasks + i)->duration);
+        // printf("\n");
     }
     
 }
@@ -143,12 +199,14 @@ void bubbleSort(task_t *current_tasks, uint16_t tasks_size)
         }
         --n;
     }
-    for (size_t i = 0; i < tasks_size; i++)
-    {
-        printf("%d ",  (current_tasks + i)->priority);
-        printf("%d ",  (current_tasks + i)->duration);
-        printf("\n");
-    }
+    // Uncomment below to print the sorted array
+    // for (size_t i = 0; i < tasks_size; i++)
+    // {
+    //     printf("%d ",  (current_tasks + i)->priority);
+    //     printf("%d ",  (current_tasks + i)->duration);
+    //     printf("\n");
+    //     printf("\n");
+    // }
     
 }
 
@@ -163,48 +221,97 @@ void swapTask(task_t *task_behind, task_t *task_ahead)
 
 void menu(admin_t *admin)
 {
-    menu_state_t seleccion;
-    uint8_t menu_sel;
-    _Bool repetir;
+    // menu_state_t seleccion;
+    // uint8_t menu_sel;
+    // _Bool repetir;
 
     printMenu();
-    scanf("i", &menu_sel);
+    printInfo(admin);
+    // scanf("i", &menu_sel);
 
-    if ((menu_sel < 0) || (menu_sel > 6)){
-        repetir = true;
+    admin->menu = getMenuSelection();
+
+    switch (admin->menu)
+    {
+    case EJECUTAR:
+        ejecutar(admin);
+        addTimeQueued(admin, 6);
+        system("clear");
+        break;
+    case AGREGAR:
+        agregar(admin);
+        addTimeQueued(admin, 5);
+        system("clear");
+        break;
+    case ELIMINAR:
+        eliminar(admin);
+        addTimeQueued(admin, 5);
+        system("clear");
+        break;
+    case PAUSAR:
+        pausar(admin);
+        addTimeQueued(admin, 3);
+        system("clear");
+        break;
+    case IMPRIMIR:
+        imprimir(admin);
+        addTimeQueued(admin, 4);
+        system("clear");
+        break;
+    case SALIR:
+        printf("GRACIAS POR USAR EL ADMINISTRADOR, HASTA PRONTO");
+        break;
+    case VERTAREAS:
+        verTareas(admin);
+        printf("Press ENTER key to Continue.\n");
+        while(getchar()!='\n');
+        getchar();
+        addTimeQueued(admin, 4);
+        system("clear");
+    default:
+    case IDLE:
+        addTimeQueued(admin, 1);
+        sleep(1);
+        system("clear");
+        break;
+    }
+    
+    // if (repetir)
+    // {
+    //     system("clear");
+    //     menu(admin);
+    // }
+}
+
+menu_state_t getMenuSelection(void)
+{
+    menu_state_t seleccion;
+    uint32_t menu_sel = 0;
+
+    static struct pollfd mypoll = { STDIN_FILENO, POLLIN|POLLPRI };
+    if( poll(&mypoll, 1, POLL_INPUT_TIME) )
+    {
+        scanf("%i", &menu_sel);
+        // printf("\n%d\n", menu_sel);
+    }
+    else
+    {
+        /* code */
+    }
+    
+    if ((menu_sel == 0))
+    {
+        seleccion = IDLE;
+    }
+    else if ((menu_sel < 0) || (menu_sel > 7)){
+        printf("Seleccion fuera de rango. Ingrese de nuevo.\n");
+        seleccion = IDLE;
     }
     else
     {
         seleccion = (menu_state_t)(menu_sel);
-        switch (seleccion)
-        {
-        case EJECUTAR:
-            // ejecutar(admin);
-            break;
-        case AGREGAR:
-            /* code */
-            break;
-        case ELIMINAR:
-            /* code */
-            break;
-        case PAUSAR:
-            /* code */
-            break;
-        case IMPRIMIR:
-            /* code */
-            break;
-        case SALIR:
-            /* code */
-            break;
-        default:
-            break;
-        }
     }
-    
-    
-    if (repetir)
-        menu(admin);
-
+    return seleccion;
 }
 
 void printMenu(void)
@@ -218,24 +325,25 @@ void printMenu(void)
     printf("4. Pausar Tarea.\n");
     printf("5. Imprimir Tarea.\n");
     printf("6. Salir del Menu.\n");
+    printf("7. Ver Tareas.\n");
     printf("\n");
 }
 
 void printInfo(admin_t *admin)
 {
-    uint16_t count_espera;
-    uint16_t count_ejecucion;
-    uint16_t count_eliminada;
-    uint16_t count_pausada;
+    uint16_t count_espera = 0;
+    uint16_t count_ejecucion = 0;
+    uint16_t count_pausada = 0;
+    uint16_t count_eliminada = 0;
 
-    for (size_t i = 0; i < admin->task_count; i++)
+    LOOP_TASKS
     {
         switch (admin->tasks[i].state)
         {
         case ESPERA:
             ++count_espera;
             break;
-        case EJECUTANDO:
+        case EJECUTADA:
             ++count_ejecucion;
             break;
         case PAUSA:
@@ -248,8 +356,15 @@ void printInfo(admin_t *admin)
             break;
         }
     }
-    grid(admin->task_count, count_espera, count_ejecucion,\
-            count_pausada, count_eliminada);
+
+    admin->task_count.espera     = count_espera;
+    admin->task_count.ejecutadas = count_ejecucion;
+    admin->task_count.pausadas   = count_pausada;
+    admin->task_count.eliminidas = count_eliminada;
+
+
+    grid(admin->task_count.actual, admin->task_count.espera, admin->task_count.ejecutadas,\
+            admin->task_count.pausadas, admin->task_count.eliminidas);
 }
 
 void grid(uint16_t total, uint16_t espera, uint16_t ejecutando,\
@@ -258,16 +373,254 @@ void grid(uint16_t total, uint16_t espera, uint16_t ejecutando,\
     printf(" _______________________________________________________");
     printf("_______________________________________________________\n");
     printf("|\t\t\t|\t\t\t|\t\t\t|\t\t|\t\t\t|\n");
-    printf("|\tTOTALES\t\t|\tESPERA\t\t|\tEJECUCION\t|\tKILL\t|\tPAUSADA\t\t|\n");
+    printf("|\tTOTALES\t\t|\tESPERA\t\t|\tEJECUTADAS\t|\tKILL\t|\tPAUSADAS\t|\n");
     printf("|\t\t\t|\t\t\t|\t\t\t|\t\t|\t\t\t|\n");
     printf(" --------------------------------------------------------");
     printf("--------------------------------------------------------\n");
-    printf("|\t    %d    \t|\t   %d    \t|\t   %d     \t|\t  %d  \t|\t   %d     \t|\n", total, espera, ejecutando, kill, pausa);
+    printf("|\t    %d    \t|\t   %d    \t|\t   %d     \t|\t  %d  \t|\t   %d     \t|\n", \
+                total, espera, ejecutando, kill, pausa);
     printf(" --------------------------------------------------------");
     printf("--------------------------------------------------------\n");
 }
 
-// void ejecutar(admin_t *admin)
-// {
-//     printf("Cuantas tareas deseas ejecutar? \n")
-// }
+void addTimeQueued(admin_t *admin, uint8_t time)
+{
+    LOOP_TASKS
+    {
+        admin->tasks[i].time_queued += time; // ms
+    }
+}
+
+void ejecutar(admin_t *admin)
+{
+    uint32_t tareasEjec;
+    system("clear");
+    verTareas(admin);
+    printf("\n¿Cuantas tareas deseas ejecutar? \n");
+    scanf("%i", &tareasEjec);
+
+    // Ejecuta las tareas conforme a esten sorteadas.
+    for (size_t i = 0; i < tareasEjec; i++)
+    {
+        if ((admin->tasks[i].state != PAUSA))
+        {
+            printf("Ejecutando Tarea: %s\n", admin->tasks[i].identif);
+            // for (size_t j = 0; j < 3; j++)
+            // {
+            //     printf(".");
+            //     sleep(1);
+            // }
+            printf("Duracion: %d seg.\n", admin->tasks[i].duration);
+            sleep(admin->tasks[i].duration);
+            printf("TAREA FINALIZADA\n");
+            admin->tasks[i].state = EJECUTADA;
+            admin->tasks[i].priority = 5000; // Put them at the back when sorting
+            // admin->task_count.ejecutadas++;
+
+            printf("TAREAS ACTUALIZADAS.\n");
+            printInfo(admin);
+            // Clear task process
+        }
+        else
+        {
+            // Tarea pausada, salta a la siguiente
+            printf("Tarea: %s pausada, saltando a la siguiente.\n", admin->tasks[i].identif);
+            tareasEjec++;
+        }
+    }
+    bubbleSort(admin->tasks, admin->task_count.actual);
+    sleep(3);
+}
+
+void agregar(admin_t *admin)
+{
+    unsigned char tareaAdd[4];
+    uint32_t priority;
+    uint32_t duration;
+    system("clear");
+    verTareas(admin);
+    if (admin->task_count.actual < MAX_TASKS)
+    {
+        admin->task_count.actual++;
+        admin->tasks = (task_t*)realloc(admin->tasks, admin->task_count.actual * sizeof(*admin->tasks));
+        // Add task data
+        printf("\nAgrega la tarea.\n");
+        printf("Ingresa el identificador de tres letras mayusculas:\n");
+        scanf("%3s", &tareaAdd);
+        printf("Ingresa la prioridad, valor entre 0 y 100:\n");
+        scanf("%i", &priority);
+        printf("Ingresa la duracion, valor en segundos:\n");
+        scanf("%i", &duration);
+        
+        for (size_t i = 0; i < 3; i++)
+        {
+            (admin->tasks[admin->task_count.actual-1].identif[i] = tareaAdd[i]);
+        }
+        admin->tasks[admin->task_count.actual-1].priority = priority;
+        admin->tasks[admin->task_count.actual-1].duration = duration;
+        admin->tasks[admin->task_count.actual-1].time_queued = 0;
+        admin->tasks[admin->task_count.actual-1].state = ESPERA;
+
+        printf("TAREAS ACTUALIZADAS\n");
+        printInfo(admin);
+        bubbleSort(admin->tasks, admin->task_count.actual);
+        sleep(3);
+    }
+    else
+    {
+        printf("El administrador ha llegado a su limite de 1000 tareas, no se pueden agregar mas.");
+    }
+    
+}
+
+void eliminar(admin_t *admin)
+{
+    unsigned char tareaElim[4];
+    _Bool eliminada = false;
+    system("clear");
+    verTareas(admin);
+    printf("\n¿Cual tarea deseas eliminar? Ingresa el identificador de tres letras mayusculas:\n");
+    scanf("%3s", &tareaElim);
+
+    LOOP_TASKS
+    {
+        if ((admin->tasks[i].identif[0] == tareaElim[0]) &&\
+                (admin->tasks[i].identif[1] == tareaElim[1]) &&\
+                    (admin->tasks[i].identif[2] == tareaElim[2]))
+        {
+            admin->tasks[i].state = KILL;
+            admin->tasks[i].priority = 6000;
+            eliminada = true;
+            printf("Tarea Eliminada: %s\n", admin->tasks[i].identif);
+        }
+    }
+
+    if (!eliminada)
+    {
+        puts("Ninguna tarea fue eliminada, no se encontró identificador.");
+    }
+
+    printf("TAREAS ACTUALIZADAS\n");
+    printInfo(admin);
+    bubbleSort(admin->tasks, admin->task_count.actual);
+    sleep(3);
+}
+
+void pausar(admin_t *admin)
+{
+    unsigned char tareaPausar[4];
+    _Bool pausada = false;
+    system("clear");
+    verTareas(admin);
+    printf("\n¿Cual tarea deseas pausar? Ingresa el identificador de tres letras mayusculas:\n");
+    scanf("%3s", &tareaPausar);
+
+    LOOP_TASKS
+    {
+        if ((admin->tasks[i].identif[0] == tareaPausar[0]) &&\
+                (admin->tasks[i].identif[1] == tareaPausar[1]) &&\
+                    (admin->tasks[i].identif[2] == tareaPausar[2]))
+        {
+            if (admin->tasks[i].state != PAUSA)
+            {
+                admin->tasks[i].state = PAUSA;
+                pausada = true;
+                printf("Tarea Pausada: %s\n", admin->tasks[i].identif);
+            }
+            else
+            {
+                admin->tasks[i].state = ESPERA;
+                pausada = true;
+                printf("Tarea Despausada: %s\n", admin->tasks[i].identif);
+            }
+        }
+    }
+
+    if (!pausada)
+    {
+        puts("Ninguna tarea fue pausada, no se encontró identificador.");
+    }
+    
+    printf("TAREAS ACTUALIZADAS\n");
+    printInfo(admin);
+    bubbleSort(admin->tasks, admin->task_count.actual);
+    sleep(3);
+}
+
+void imprimir(admin_t* admin)
+{
+    unsigned char tareaImpr[4];
+    _Bool impresa = false;
+    system("clear");
+    verTareas(admin);
+    printf("\n¿Cual tarea deseas imprimir? Ingresa el identificador de tres letras mayusculas:\n");
+    scanf("%3s", &tareaImpr);
+
+    LOOP_TASKS
+    {
+        if ((admin->tasks[i].identif[0] == tareaImpr[0]) &&\
+                (admin->tasks[i].identif[1] == tareaImpr[1]) &&\
+                    (admin->tasks[i].identif[2] == tareaImpr[2]))
+        {
+            printCurrentTaskInfo((admin->tasks + i));
+            impresa = true;
+        }
+    }
+
+    if (!impresa)
+    {
+        puts("No se puede imprimir tarea, no se encontró identificador.");
+    }
+
+    printf("TAREAS ACTUALIZADAS\n");
+    printInfo(admin);
+    sleep(4);
+
+}
+
+void printCurrentTaskInfo(task_t* task)
+{
+    printf("________________________\n");
+    printf("|\t\t\t|\n");
+    printf("|  TASK: %s\t\t|\n", task->identif);
+    printf("|  Prioridad: %d\t\t|\n", task->priority);
+    printf("|  Duracion: %d\t\t|\n", task->duration);
+    printf("|  T en cola: %d\t\t|\n", task->time_queued);
+    char *estado ;
+    switch (task->state)
+    {
+    case ESPERA:
+        estado = "ESPERA";
+        break;
+    case EJECUTADA:
+        estado = "EJECUTADA";
+        break;
+    case PAUSA:
+        estado = "PAUSA";
+        break;
+    case KILL:
+        estado = "TERMINADA";
+        break;
+    default:
+        break;
+    }
+    printf("|  Estado: %s\t|\n", estado);
+    printf("-------------------------\n");
+}
+
+void verTareas(admin_t *admin)
+{
+    printf("___________________________________________________________");
+    printf("___________________________________________________________\n");
+    printf("|");
+    LOOP_TASKS
+    {
+        printf("  %d. %s  |", (i + 1), admin->tasks[i].identif);
+        if ((i % 10 == 0) && (i != 0))
+        {
+            printf("\n|");
+        }
+    }
+    printf("\n---------------------------------------------------------");
+    printf("----------------------------------------------------------\n");
+}
