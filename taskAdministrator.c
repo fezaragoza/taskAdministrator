@@ -101,21 +101,20 @@ void verTareas(admin_t*);
 int main(void)
 {   
     time_t t;
-    srand((unsigned int) time(&t));
+    srand((unsigned int) time(&t)); // Semilla para generar numeros random
 
     admin_t* admin;
-    admin = (admin_t*)malloc(sizeof(*admin));
+    admin = (admin_t*)malloc(sizeof(*admin));             // Allocate memory for whole admin.
 
-    admin->tasks = malloc((RAND_TASKS * sizeof(task_t)));
-    memset(admin, 0, sizeof(admin));
-    admin->task_count.actual = RAND_TASKS; // Need to keep track of array size as it's a pointer.
+    admin->tasks = malloc((RAND_TASKS * sizeof(task_t))); // Allocate memeory for initial random tasks.
+    memset(admin, 0, sizeof(admin));                      // Set whole admin struct to 0.
+    admin->task_count.actual = RAND_TASKS;                // Need to keep track of array size as it's a pointer, init woth malloc.
     
-    init(admin);
+    init(admin);                                          // Fill initial tasks and bubble sort them.
     while(admin->menu != SALIR)
     {
-        menu(admin);
+        menu(admin);                                      // Continuos process.
     }
-
     return 0;
 }
 
@@ -141,12 +140,13 @@ void generateInitRandomTask(task_t *current_tasks)
     {
         for (size_t j = 0; j < 3; j++)
         {    
-            (current_tasks + i)->identif[j] = table[rand() % size_table];
+            (current_tasks + i)->identif[j] = table[rand() % size_table]; // Generate a 3 capital letter identifier randomly.
         }
         (current_tasks + i)->priority    = rand() % MAX_TASK_PRIORITY;
         (current_tasks + i)->duration    = rand() % MAX_TASK_DURATION;
         (current_tasks + i)->time_queued = 0;
         (current_tasks + i)->state       = ESPERA;
+        // Fill above the remaining taks fields with data.
     }
     
 }
@@ -196,9 +196,9 @@ void menu(admin_t *admin)
     printMenu();
     printInfo(admin);
 
-    admin->menu = getMenuSelection();
+    admin->menu = getMenuSelection(); // Retrieve selection from user.
 
-    switch (admin->menu)
+    switch (admin->menu)              // Switch selection.
     {
     case EJECUTAR:
         ejecutar(admin);
@@ -230,7 +230,7 @@ void menu(admin_t *admin)
         break;
     case VERTAREAS:
         verTareas(admin);
-        printf("Press ENTER key to Continue.\n");
+        printf("Press ENTER key to continue.\n");
         while(getchar()!='\n');
         getchar();
         addTimeQueued(admin, 4);
@@ -257,6 +257,7 @@ menu_state_t getMenuSelection(void)
         scanf("%i", &menu_sel);
     }
     
+    // If timeout completes, then menu_sel remains 0, aka IDLE.
     if ((menu_sel == 0))
     {
         seleccion = IDLE;
@@ -294,6 +295,7 @@ void printInfo(admin_t *admin)
     uint16_t count_pausada = 0;
     uint16_t count_eliminada = 0;
 
+    // Loop all the tasks and count the states of all of them.
     LOOP_TASKS
     {
         switch (admin->tasks[i].state)
@@ -320,7 +322,7 @@ void printInfo(admin_t *admin)
     admin->task_count.pausadas   = count_pausada;
     admin->task_count.eliminidas = count_eliminada;
 
-
+    // Print information in grid
     grid(admin->task_count.actual, admin->task_count.espera, admin->task_count.ejecutadas,\
             admin->task_count.pausadas, admin->task_count.eliminidas);
 }
@@ -343,6 +345,7 @@ void grid(uint16_t total, uint16_t espera, uint16_t ejecutando,\
 
 void addTimeQueued(admin_t *admin, uint8_t time)
 {
+    // Add time to time_queued field of each task.
     LOOP_TASKS
     {
         admin->tasks[i].time_queued += time; // ms
@@ -357,7 +360,7 @@ void ejecutar(admin_t *admin)
     printf("\n¿Cuantas tareas deseas ejecutar? \n");
     scanf("%i", &tareasEjec);
 
-    // Ejecuta las tareas conforme a esten sorteadas.
+    // Do the number of tasks the user specified.
     for (size_t i = 0; i < tareasEjec; i++)
     {
         if ((admin->tasks[i].state != PAUSA))
@@ -367,14 +370,14 @@ void ejecutar(admin_t *admin)
             sleep(admin->tasks[i].duration);
             printf("TAREA FINALIZADA\n");
             admin->tasks[i].state = EJECUTADA;
-            admin->tasks[i].priority = 5000; // Put them at the back when sorting
+            admin->tasks[i].priority = 5000; // Setting this to a big value to put them at the back when sorting.
 
             printf("TAREAS ACTUALIZADAS.\n");
             printInfo(admin);
         }
         else
         {
-            // Tarea pausada, salta a la siguiente
+            // Task is paused, skipping it until unpaused.
             printf("Tarea: %s pausada, saltando a la siguiente.\n", admin->tasks[i].identif);
             tareasEjec++;
         }
@@ -433,6 +436,7 @@ void eliminar(admin_t *admin)
     printf("\n¿Cual tarea deseas eliminar? Ingresa el identificador de tres letras mayusculas:\n");
     scanf("%3s", &tareaElim);
 
+    // Loop through all tasks to search for specified task
     LOOP_TASKS
     {
         if ((admin->tasks[i].identif[0] == tareaElim[0]) &&\
@@ -440,7 +444,7 @@ void eliminar(admin_t *admin)
                     (admin->tasks[i].identif[2] == tareaElim[2]))
         {
             admin->tasks[i].state = KILL;
-            admin->tasks[i].priority = 6000;
+            admin->tasks[i].priority = 6000; // Setting this to a big value to put them at the back when sorting.
             eliminada = true;
             printf("Tarea Eliminada: %s\n", admin->tasks[i].identif);
         }
@@ -472,6 +476,7 @@ void pausar(admin_t *admin)
                 (admin->tasks[i].identif[1] == tareaPausar[1]) &&\
                     (admin->tasks[i].identif[2] == tareaPausar[2]))
         {
+            // Pause, unpause the task.
             if (admin->tasks[i].state != PAUSA)
             {
                 admin->tasks[i].state = PAUSA;
@@ -561,6 +566,7 @@ void printCurrentTaskInfo(task_t* task)
 
 void verTareas(admin_t *admin)
 {
+    // Print all tasks in the list, according to their priority.
     printf("___________________________________________________________");
     printf("___________________________________________________________\n");
     printf("|");
