@@ -103,26 +103,17 @@ int main(void)
     time_t t;
     srand((unsigned int) time(&t));
 
-    // admin_t admin;
     admin_t* admin;
     admin = (admin_t*)malloc(sizeof(*admin));
 
     admin->tasks = malloc((RAND_TASKS * sizeof(task_t)));
     memset(admin, 0, sizeof(admin));
     admin->task_count.actual = RAND_TASKS; // Need to keep track of array size as it's a pointer.
-    // admin.task_count.actual = sizeof(admin/tasks)/sizeof(task_t);
-    // printf("%d ", sizeof(admin.tasks)/sizeof(task_t)); Reports total current array elements
-    // uint16_t current_tasks_size = sizeof(admin.tasks)/sizeof(task_t);
-    // printf("%d\n", current_tasks_size);
     
     init(admin);
     while(admin->menu != SALIR)
     {
         menu(admin);
-        // printInfo(&admin);
-
-        // Update task count
-        // admin.task_count.actual = sizeof(admin.tasks)/sizeof(task_t); // Actual
     }
 
     return 0;
@@ -136,37 +127,26 @@ void init(admin_t *admin)
     printf("Bienvenido Administrador.\n");
     printf("Generando %d tareas iniciales...\n", RAND_TASKS);
     generateInitRandomTask(admin->tasks);
-    // admin->task_count.actual = sizeof(admin->tasks)/sizeof(task_t);  // Actual
     printf("Sorteando tareas...\n");
     bubbleSort(admin->tasks, admin->task_count.actual);
 }
 
 void generateInitRandomTask(task_t *current_tasks)
 {
-    // Compute current size of task_list
-    // printf("%d ", sizeof(*current_tasks)); // Reports size in bytes of just one task_t, as the pointer points to first element in the list
-    // printf("%d ", sizeof(*current_tasks)/sizeof(task_t)); // Reports just 1 byte, as they both are the same size. *current_tasks points to the first element.
-
     const char table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',\
                             'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
     uint8_t size_table = sizeof(table) / sizeof(char);
 
     for (size_t i = 0; i < RAND_TASKS; i++)
     {
-        // char ident[3];
         for (size_t j = 0; j < 3; j++)
-        {
-            // ident[j] = table[rand() % size_table];      
-            (current_tasks + i)->identif[j] = table[rand() % size_table]; 
+        {    
+            (current_tasks + i)->identif[j] = table[rand() % size_table];
         }
         (current_tasks + i)->priority    = rand() % MAX_TASK_PRIORITY;
         (current_tasks + i)->duration    = rand() % MAX_TASK_DURATION;
         (current_tasks + i)->time_queued = 0;
         (current_tasks + i)->state       = ESPERA;
-        // Uncomment below to print the generated radom array
-        // printf("%d ",  (current_tasks + i)->priority);
-        // printf("%d ",  (current_tasks + i)->duration);
-        // printf("\n");
     }
     
 }
@@ -199,14 +179,6 @@ void bubbleSort(task_t *current_tasks, uint16_t tasks_size)
         }
         --n;
     }
-    // Uncomment below to print the sorted array
-    // for (size_t i = 0; i < tasks_size; i++)
-    // {
-    //     printf("%d ",  (current_tasks + i)->priority);
-    //     printf("%d ",  (current_tasks + i)->duration);
-    //     printf("\n");
-    //     printf("\n");
-    // }
     
 }
 
@@ -221,13 +193,8 @@ void swapTask(task_t *task_behind, task_t *task_ahead)
 
 void menu(admin_t *admin)
 {
-    // menu_state_t seleccion;
-    // uint8_t menu_sel;
-    // _Bool repetir;
-
     printMenu();
     printInfo(admin);
-    // scanf("i", &menu_sel);
 
     admin->menu = getMenuSelection();
 
@@ -275,12 +242,7 @@ void menu(admin_t *admin)
         system("clear");
         break;
     }
-    
-    // if (repetir)
-    // {
-    //     system("clear");
-    //     menu(admin);
-    // }
+
 }
 
 menu_state_t getMenuSelection(void)
@@ -289,14 +251,10 @@ menu_state_t getMenuSelection(void)
     uint32_t menu_sel = 0;
 
     static struct pollfd mypoll = { STDIN_FILENO, POLLIN|POLLPRI };
+    // Give timeout waiting on user input
     if( poll(&mypoll, 1, POLL_INPUT_TIME) )
     {
         scanf("%i", &menu_sel);
-        // printf("\n%d\n", menu_sel);
-    }
-    else
-    {
-        /* code */
     }
     
     if ((menu_sel == 0))
@@ -405,21 +363,14 @@ void ejecutar(admin_t *admin)
         if ((admin->tasks[i].state != PAUSA))
         {
             printf("Ejecutando Tarea: %s\n", admin->tasks[i].identif);
-            // for (size_t j = 0; j < 3; j++)
-            // {
-            //     printf(".");
-            //     sleep(1);
-            // }
             printf("Duracion: %d seg.\n", admin->tasks[i].duration);
             sleep(admin->tasks[i].duration);
             printf("TAREA FINALIZADA\n");
             admin->tasks[i].state = EJECUTADA;
             admin->tasks[i].priority = 5000; // Put them at the back when sorting
-            // admin->task_count.ejecutadas++;
 
             printf("TAREAS ACTUALIZADAS.\n");
             printInfo(admin);
-            // Clear task process
         }
         else
         {
@@ -540,7 +491,7 @@ void pausar(admin_t *admin)
     {
         puts("Ninguna tarea fue pausada, no se encontró identificador.");
     }
-    
+
     printf("TAREAS ACTUALIZADAS\n");
     printInfo(admin);
     bubbleSort(admin->tasks, admin->task_count.actual);
